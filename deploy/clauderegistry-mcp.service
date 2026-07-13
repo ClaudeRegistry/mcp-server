@@ -1,0 +1,32 @@
+# systemd unit for the ClaudeRegistry MCP server.
+# Install on the droplet:
+#   sudo cp deploy/clauderegistry-mcp.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now clauderegistry-mcp
+# Adjust WorkingDirectory / User / node path to match your box.
+
+[Unit]
+Description=ClaudeRegistry MCP server (read-only plugin catalog over Streamable HTTP)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/clauderegistry-mcp
+ExecStart=/usr/bin/node src/index.js
+Environment=NODE_ENV=production
+Environment=PORT=8787
+Restart=always
+RestartSec=3
+# Run as a non-root user that can read the app directory.
+User=www-data
+Group=www-data
+
+# Hardening (the service only needs outbound HTTPS; it writes nothing to disk).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
