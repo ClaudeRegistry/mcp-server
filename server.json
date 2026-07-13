@@ -1,0 +1,12 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "com.clauderegistry/plugin-catalog",
+  "description": "Read-only remote MCP server exposing the ClaudeRegistry marketplace of Claude Code plugins. Search plugins, fetch plugin details, and list categories, each with ready-to-run install commands.",
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://clauderegistry.com/mcp"
+    }
+  ]
+}
