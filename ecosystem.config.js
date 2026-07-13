@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "clauderegistry-mcp",
       script: "src/index.js",
-      cwd: "/var/www/clauderegistry-mcp",
+      cwd: "/var/www/clauderegistry/mcp-server",
       instances: 1,
       exec_mode: "fork",
       watch: false,

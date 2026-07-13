@@ -1,6 +1,6 @@
 # Deploying the ClaudeRegistry MCP server
 
-Runs under **pm2** at `/var/www/clauderegistry-mcp`, listening on `127.0.0.1:8787`,
+Runs under **pm2** at `/var/www/clauderegistry/mcp-server`, listening on `127.0.0.1:8787`,
 and exposed publicly as the path `https://clauderegistry.com/mcp` via the existing
 site's Nginx (no new subdomain, DNS record, or TLS cert). This matches the
 onBookmarks `service` convention (pm2 + `.infra/deploy.sh`).
@@ -9,8 +9,8 @@ onBookmarks `service` convention (pm2 + `.infra/deploy.sh`).
 
 ```bash
 # 1. Clone to the standard path
-sudo git clone git@github.com:onBookmarks/mcp-server.git /var/www/clauderegistry-mcp
-cd /var/www/clauderegistry-mcp
+sudo git clone git@github.com:onBookmarks/mcp-server.git /var/www/clauderegistry/mcp-server
+cd /var/www/clauderegistry/mcp-server
 npm ci --omit=dev
 
 # 2. Start under pm2

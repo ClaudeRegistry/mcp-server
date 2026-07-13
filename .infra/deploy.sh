@@ -10,7 +10,7 @@ BOLD="\033[1m"
 # Configuration
 SERVER_IP="167.99.114.235"
 SERVER_USER="root"
-SERVER_PATH="/var/www/clauderegistry-mcp"
+SERVER_PATH="/var/www/clauderegistry/mcp-server"
 SERVER_CONNECTION="${SERVER_USER}@${SERVER_IP}"
 
 echo -e "${BLUE}${BOLD}Deploying MCP server to ${SERVER_CONNECTION}...${RESET}"
@@ -18,7 +18,7 @@ echo
 
 # The service deploys by pulling main ON the server, so push to main first.
 ssh "${SERVER_CONNECTION}" << 'EOF'
-cd /var/www/clauderegistry-mcp || exit 1
+cd /var/www/clauderegistry/mcp-server || exit 1
 
 echo "Pulling latest changes..."
 git pull origin main || exit 1

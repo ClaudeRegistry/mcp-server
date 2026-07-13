@@ -37,7 +37,7 @@ claude mcp add --transport http clauderegistry https://clauderegistry.com/mcp
 
 ## Deployment
 
-Runs under **pm2** (`ecosystem.config.js`) at `/var/www/clauderegistry-mcp`, listening on `127.0.0.1:8787`, and exposed as the **path** `clauderegistry.com/mcp` via a `location` block in the existing site's Nginx (`.infra/nginx/clauderegistry.com.mcp-location.conf`) — no new subdomain, DNS record, or TLS cert. Because the static site is served directly by Nginx, a Node hiccup only ever affects `/mcp`.
+Runs under **pm2** (`ecosystem.config.js`) at `/var/www/clauderegistry/mcp-server`, listening on `127.0.0.1:8787`, and exposed as the **path** `clauderegistry.com/mcp` via a `location` block in the existing site's Nginx (`.infra/nginx/clauderegistry.com.mcp-location.conf`) — no new subdomain, DNS record, or TLS cert. Because the static site is served directly by Nginx, a Node hiccup only ever affects `/mcp`.
 
 Deploy with `.infra/deploy.sh` (or, from the ClaudeRegistry root, `./deploy.sh mcp-server`), which git-pulls on the server, runs `npm ci --omit=dev`, and `pm2 reload`s. Full runbook in [`DEPLOY.md`](./DEPLOY.md). A `Dockerfile` is included as an alternative to pm2.
 
