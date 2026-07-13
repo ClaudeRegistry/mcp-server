@@ -37,7 +37,9 @@ claude mcp add --transport http clauderegistry https://clauderegistry.com/mcp
 
 ## Deployment
 
-Runs as a plain Node service (`node src/index.js`, or the included `Dockerfile` on `node:22-alpine`) listening on `127.0.0.1:8787`. Expose it as a **path on the existing site**: add the `location = /mcp` block from `deploy/nginx-mcp.conf` to your current `clauderegistry.com` Nginx server block, then `nginx -t && systemctl reload nginx`. No new subdomain, DNS record, or TLS cert is needed — it reuses the site's existing certificate, and the static site keeps being served directly by Nginx (so if the Node process is down, only `/mcp` is affected). The proxy runs with buffering off and long read timeouts for Streamable HTTP.
+Runs under **pm2** (`ecosystem.config.js`) at `/var/www/clauderegistry-mcp`, listening on `127.0.0.1:8787`, and exposed as the **path** `clauderegistry.com/mcp` via a `location` block in the existing site's Nginx (`.infra/nginx/clauderegistry.com.mcp-location.conf`) — no new subdomain, DNS record, or TLS cert. Because the static site is served directly by Nginx, a Node hiccup only ever affects `/mcp`.
+
+Deploy with `.infra/deploy.sh` (or, from the ClaudeRegistry root, `./deploy.sh mcp-server`), which git-pulls on the server, runs `npm ci --omit=dev`, and `pm2 reload`s. Full runbook in [`DEPLOY.md`](./DEPLOY.md). A `Dockerfile` is included as an alternative to pm2.
 
 The catalog is fetched from GitHub at runtime and cached in memory (~5 minute TTL). On a fetch error the server serves the last-good cache (or an empty list) and never crashes.
 

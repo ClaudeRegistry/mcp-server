@@ -1,30 +1,30 @@
 # Deploying the ClaudeRegistry MCP server
 
-The service is a plain Node process on `127.0.0.1:8787`, exposed publicly as the path
-`https://clauderegistry.com/mcp` via the existing site's Nginx (no new subdomain, DNS
-record, or TLS cert).
+Runs under **pm2** at `/var/www/clauderegistry-mcp`, listening on `127.0.0.1:8787`,
+and exposed publicly as the path `https://clauderegistry.com/mcp` via the existing
+site's Nginx (no new subdomain, DNS record, or TLS cert). This matches the
+onBookmarks `service` convention (pm2 + `.infra/deploy.sh`).
 
 ## One-time setup on the droplet
 
 ```bash
-# 1. Clone
-sudo git clone git@github.com:onBookmarks/mcp-server.git /opt/clauderegistry-mcp
-cd /opt/clauderegistry-mcp
-sudo npm ci --omit=dev
-sudo chown -R www-data:www-data /opt/clauderegistry-mcp   # match the systemd User=
+# 1. Clone to the standard path
+sudo git clone git@github.com:onBookmarks/mcp-server.git /var/www/clauderegistry-mcp
+cd /var/www/clauderegistry-mcp
+npm ci --omit=dev
 
-# 2. systemd service (auto-restart, starts on boot)
-sudo cp deploy/clauderegistry-mcp.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now clauderegistry-mcp
-curl -fsS http://127.0.0.1:8787/health          # -> {"ok":true}
+# 2. Start under pm2
+pm2 start ecosystem.config.js
+pm2 save                                    # persist across reboots
+curl -fsS http://127.0.0.1:8787/health      # -> {"ok":true}
 
-# 3. Nginx: paste the location block into the EXISTING clauderegistry.com server{}
-#    (see deploy/nginx-mcp.conf), then:
+# 3. Nginx: paste the `location = /mcp` block from
+#    .infra/nginx/clauderegistry.com.mcp-location.conf into the EXISTING
+#    clauderegistry.com server{} block, then:
 sudo nginx -t && sudo systemctl reload nginx
 
-# 4. Verify end-to-end
-curl -s -o /dev/null -w '%{http_code}\n' -X POST https://clauderegistry.com/mcp   # 400/406 = reached the server (needs MCP body); NOT 404
+# 4. Verify
+curl -s -o /dev/null -w '%{http_code}\n' https://clauderegistry.com/mcp   # 405 for GET (not 404)
 ```
 
 Then anyone can add it:
@@ -33,28 +33,19 @@ Then anyone can add it:
 claude mcp add --transport http clauderegistry https://clauderegistry.com/mcp
 ```
 
-## Updating (manual)
+## Deploying updates
+
+After pushing to `main`, from your laptop:
 
 ```bash
-cd /opt/clauderegistry-mcp
-sudo git pull --ff-only origin main
-sudo npm ci --omit=dev
-sudo systemctl restart clauderegistry-mcp
+./.infra/deploy.sh
+# or, from the ClaudeRegistry root:
+./deploy.sh mcp-server
 ```
 
-## Updating (automatic, GitHub Actions)
+This SSHes to the droplet, `git pull`s, runs `npm ci --omit=dev`, `pm2 reload`s, and health-checks.
 
-`.github/workflows/deploy.yml` redeploys on push to `main` — but only once you opt in:
-
-1. Repo -> Settings -> Secrets and variables -> Actions:
-   - **Variable** `DEPLOY_ENABLED` = `true`
-   - **Secrets**: `DEPLOY_HOST` (droplet IP), `DEPLOY_USER` (e.g. `root`), `DEPLOY_PATH` (`/opt/clauderegistry-mcp`), `DEPLOY_SSH_KEY` (a private key whose public key is in the droplet's `~/.ssh/authorized_keys`).
-2. For `sudo systemctl restart` to work non-interactively, allow it for the deploy user, e.g. add via `visudo`:
-   `deployuser ALL=(root) NOPASSWD: /bin/systemctl restart clauderegistry-mcp`
-
-Until `DEPLOY_ENABLED=true`, the workflow job is skipped (it never fails a push).
-
-## Docker (alternative to systemd)
+## Docker (alternative to pm2)
 
 ```bash
 docker build -t clauderegistry-mcp .
