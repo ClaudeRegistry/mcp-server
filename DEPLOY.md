@@ -14,7 +14,7 @@ cd /var/www/clauderegistry/mcp-server
 npm ci --omit=dev
 
 # 2. Start under pm2
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 pm2 save                                    # persist across reboots
 curl -fsS http://127.0.0.1:8787/health      # -> {"ok":true}
 

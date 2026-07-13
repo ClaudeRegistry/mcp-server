@@ -27,7 +27,7 @@ echo "Installing dependencies..."
 npm ci --omit=dev || exit 1
 
 echo "Reloading PM2..."
-pm2 startOrReload ecosystem.config.js --update-env || pm2 restart clauderegistry-mcp || exit 1
+pm2 startOrReload ecosystem.config.cjs --update-env || pm2 restart clauderegistry-mcp || exit 1
 pm2 save || true
 
 echo "Health check..."
