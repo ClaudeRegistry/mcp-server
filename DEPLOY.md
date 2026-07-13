@@ -9,7 +9,7 @@ onBookmarks `service` convention (pm2 + `.infra/deploy.sh`).
 
 ```bash
 # 1. Clone to the standard path
-sudo git clone git@github.com:onBookmarks/mcp-server.git /var/www/clauderegistry/mcp-server
+sudo git clone git@github.com:ClaudeRegistry/mcp-server.git /var/www/clauderegistry/mcp-server
 cd /var/www/clauderegistry/mcp-server
 npm ci --omit=dev
 
