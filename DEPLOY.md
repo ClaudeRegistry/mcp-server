@@ -52,8 +52,20 @@ docker build -t clauderegistry-mcp .
 docker run -d --restart unless-stopped -p 127.0.0.1:8787:8787 --name mcp clauderegistry-mcp
 ```
 
-## Register (optional, discovery only)
+## Official MCP Registry
 
-Submit `server.json` (name `com.clauderegistry/plugin-catalog`) to the
-[Official MCP Registry](https://github.com/modelcontextprotocol/registry) so agents can
-discover the server. The public endpoint works without this.
+**Published** as `com.clauderegistry/plugin-catalog` (status `active`; verify at
+`https://registry.modelcontextprotocol.io/v0/servers?search=clauderegistry`). PulseMCP
+auto-ingests from the registry; Smithery/Glama need a separate manual submit.
+
+Domain ownership is proven via **HTTP verification** — set up once on the droplet:
+- Ed25519 keypair: `/root/mcp-key.pem` (private hex cached at `/root/.mcp-priv`).
+- Proof file: `/var/www/clauderegistry/mcp-registry-auth.txt` (`v=MCPv1; k=ed25519; p=<pubkey>`, mode 644), served at `https://clauderegistry.com/.well-known/mcp-registry-auth` via an exact-match nginx `location` that bypasses the `location ~ /\.` deny.
+
+To publish an **update** (name+version is immutable, so bump `version` first):
+```bash
+# on the droplet, in /root (mcp-publisher binary + server.json live there)
+./mcp-publisher login http --domain=clauderegistry.com --private-key="$(cat /root/.mcp-priv)"
+./mcp-publisher publish
+```
+Note: the registry caps `description` at 100 characters.
