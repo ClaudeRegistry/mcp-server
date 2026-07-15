@@ -1,6 +1,6 @@
 {
   "name": "@clauderegistry/mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Remote MCP server exposing the ClaudeRegistry plugin catalog to AI agents (read-only, Streamable HTTP).",
