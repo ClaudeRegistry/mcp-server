@@ -4,7 +4,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { searchPlugins, getPlugin, listCategories } from './catalog.js';
-import { verifyFiles, verifyRepo, checkRate } from './verifyTool.js';
 
 // Shared read-only annotations: these tools never mutate anything, always
 // return the same result for the same input, and operate over the bounded
@@ -89,8 +88,8 @@ const pluginSchema = {
   ),
 };
 
-export function buildServer(clientIp) {
-  const server = new McpServer({ name: 'clauderegistry', version: '1.3.0' });
+export function buildServer() {
+  const server = new McpServer({ name: 'clauderegistry', version: '1.4.0' });
 
   server.registerTool(
     'search_plugins',
@@ -186,72 +185,85 @@ export function buildServer(clientIp) {
     }
   );
 
+  // verify_plugin deliberately does NO server-side work. It returns the
+  // recipe for the calling agent to run the open-source verifier ON THE
+  // USER'S MACHINE: the plugin's code never leaves their computer, the check
+  // results come from the same script that gates the Verified badge, and the
+  // server never fetches, stores, or executes anything on anyone's behalf.
+  const VERIFIER_RAW_URL =
+    'https://raw.githubusercontent.com/ClaudeRegistry/marketplace/main/scripts/verify-plugins.mjs';
+
   server.registerTool(
     'verify_plugin',
     {
-      title: 'Verify a Claude Code plugin (pre-publish)',
+      title: 'Verify a Claude Code plugin (pre-publish, runs locally)',
       description:
-        'Run the ClaudeRegistry verification methodology (the same seven static checks that gate the Verified badge: manifest integrity, hook safety, agent tool scopes, command hygiene, skill structure, no secrets, documentation) against a plugin BEFORE it is published. Two modes: pass "files" (the plugin\'s source files inline, for work-in-progress on the local machine) OR pass "repo" (a public GitHub repository, optionally with ref and path). Nothing is executed; every check reads source. Use this while building a plugin to fix issues before submitting to the registry.',
+        'Get the recipe to run the ClaudeRegistry verification methodology (the seven static checks that gate the Verified badge: manifest integrity, hook safety, agent tool scopes, command hygiene, skill structure, no secrets, documentation) against a plugin BEFORE publishing it. The verification runs entirely on the local machine via a dependency-free open-source Node script; the plugin code never leaves the user\'s computer and this server performs no computation. Call this when the user wants their plugin or skill checked, then follow the returned steps: download the script, run it against the plugin directory, and fix any FAIL findings it reports.',
       inputSchema: {
-        files: z
-          .array(
-            z.object({
-              path: z.string().describe('relative path inside the plugin, e.g. ".claude-plugin/plugin.json"'),
-              content: z.string().describe('full file content'),
-            })
-          )
+        pluginPath: z
+          .string()
           .optional()
-          .describe('inline mode: the plugin\'s source files (max 80 files / 400KB; skip lockfiles, images, build output)'),
-        repo: z.string().optional().describe('repo mode: public GitHub repository as "owner/name"'),
-        ref: z.string().optional().describe('repo mode: branch, tag, or commit SHA (default HEAD)'),
-        path: z.string().optional().describe('repo mode: plugin directory inside the repo (default repo root)'),
+          .describe('local path to the plugin directory, used to fill in the run command (optional)'),
       },
       outputSchema: {
-        ready: z.boolean().describe('true when all applicable checks pass (verification-ready)'),
-        source: z.string().describe('what was verified'),
+        runsWhere: z.string().describe('always "local": verification executes on the user\'s machine'),
         methodologyVersion: z.string(),
         methodologyUrl: z.string(),
-        checks: z.array(
-          z.object({
-            id: z.string(),
-            title: z.string(),
-            status: z.string().describe('pass | fail | n/a'),
-            detail: z.string().describe('evidence, or the exact problem to fix'),
-          })
-        ),
+        checks: z
+          .array(z.object({ id: z.string(), title: z.string(), what: z.string() }))
+          .describe('the seven checks the script will run'),
+        steps: z.array(z.string()).describe('what the agent should do, in order'),
+        commands: z.object({
+          macos_linux: z.string().describe('download + run one-liner for bash/zsh'),
+          windows: z.string().describe('download + run one-liner for PowerShell'),
+          alternative_clone: z.string().describe('equivalent via cloning the marketplace repo'),
+        }),
+        interpreting: z.string(),
         nextSteps: z.string(),
-        repo: z.string().optional(),
-        commit: z.string().optional().describe('repo mode: the exact commit that was verified'),
       },
       annotations: {
         title: 'Verify a Claude Code plugin',
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: true, // repo mode fetches from GitHub
+        openWorldHint: false,
       },
     },
-    async ({ files, repo, ref, path: subPath }) => {
-      const fail = (message) => ({
-        content: [{ type: 'text', text: JSON.stringify({ error: message }, null, 2) }],
-        isError: true,
-      });
-      try {
-        const mode = files?.length ? 'files' : repo ? 'repo' : null;
-        if (!mode) return fail('Provide either "files" (inline source files) or "repo" (a public GitHub repository).');
-        if (!checkRate(clientIp, mode)) {
-          return fail(
-            `Rate limit reached for ${mode} verification (${mode === 'repo' ? 10 : 30}/hour). Run the verifier locally instead: clone github.com/ClaudeRegistry/marketplace and run "node scripts/verify-plugins.mjs path/to/plugin".`
-          );
-        }
-        const result = mode === 'files' ? verifyFiles(files) : verifyRepo(repo, ref, subPath);
-        return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-          structuredContent: result,
-        };
-      } catch (err) {
-        return fail(String(err.message ?? err).slice(0, 300));
-      }
+    async ({ pluginPath }) => {
+      const target = pluginPath && pluginPath.trim() ? pluginPath.trim() : 'path/to/your-plugin';
+      const result = {
+        runsWhere: 'local',
+        methodologyVersion: '1.0',
+        methodologyUrl: 'https://clauderegistry.com/verification',
+        checks: [
+          { id: 'manifest-integrity', title: 'Manifest integrity', what: 'plugin.json valid and complete (name, version, license, description)' },
+          { id: 'hook-safety', title: 'Hook safety', what: 'hooks are advisory-only and fail-safe: no network, no fs writes, no credential access, no dynamic evaluation; subprocess only for constant read-only git commands' },
+          { id: 'agent-tool-scope', title: 'Agent tool scopes', what: 'every subagent declares an explicit least-privilege tools list; analysis agents carry no Write/Edit' },
+          { id: 'command-hygiene', title: 'Command hygiene', what: 'every command has frontmatter with a description' },
+          { id: 'skill-structure', title: 'Skill structure', what: 'skills/<name>/SKILL.md with name+description; referenced reference files exist' },
+          { id: 'no-secrets', title: 'No secrets', what: 'no credentials, keys, or tokens anywhere in the plugin' },
+          { id: 'docs', title: 'Documentation', what: 'a substantive README with the registry install commands' },
+        ],
+        steps: [
+          'Download the verifier script (a single dependency-free Node file, static analysis only; feel free to read it before running).',
+          `Run it against the plugin directory (Node 18+ required): it prints PASS/FAIL per check with the exact file and problem for every failure.`,
+          'Fix any FAIL findings and re-run until the script reports verification-ready (exit code 0).',
+          'Offer the user the next step: submit to the registry to earn the Verified badge.',
+        ],
+        commands: {
+          macos_linux: `curl -fsSL ${VERIFIER_RAW_URL} -o /tmp/cr-verify.mjs && node /tmp/cr-verify.mjs "${target}"`,
+          windows: `iwr ${VERIFIER_RAW_URL} -OutFile $env:TEMP\\cr-verify.mjs; node $env:TEMP\\cr-verify.mjs "${target}"`,
+          alternative_clone: `git clone https://github.com/ClaudeRegistry/marketplace && node marketplace/scripts/verify-plugins.mjs "${target}"`,
+        },
+        interpreting:
+          'Exit code 0 means all applicable checks passed (verification-ready). Each FAIL line names the file and the exact problem; n/a means the plugin has no such component (e.g. no hooks). The same script, run by registry CI, gates the Verified badge on submission.',
+        nextSteps:
+          'When verification-ready: submit via PR to github.com/ClaudeRegistry/marketplace (see CONTRIBUTING.md). Vendor under plugins/<name>/ for the Verified tier, or keep the repo external and add a commit pin for Verified-at-commit. Details: https://clauderegistry.com/verification',
+      };
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
+      };
     }
   );
 

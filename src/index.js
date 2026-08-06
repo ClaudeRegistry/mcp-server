@@ -6,8 +6,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { buildServer } from './server.js';
 
 const app = express();
-app.set('trust proxy', 'loopback'); // behind the local nginx proxy
-app.use(express.json({ limit: '600kb' })); // verify_plugin inline mode headroom
+app.use(express.json());
 
 // Permissive CORS for a public read-only server.
 app.use((req, res, next) => {
@@ -23,7 +22,7 @@ app.use((req, res, next) => {
 
 app.post('/mcp', async (req, res) => {
   try {
-    const server = buildServer(req.ip);
+    const server = buildServer();
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless
     });

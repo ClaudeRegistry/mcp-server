@@ -3,7 +3,7 @@
   "name": "com.clauderegistry/plugin-catalog",
   "title": "Claude Registry Plugin Catalog",
   "description": "Search and install Claude Code plugins from the ClaudeRegistry marketplace (read-only).",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "remotes": [
     {
       "type": "streamable-http",
