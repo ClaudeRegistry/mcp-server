@@ -4,12 +4,23 @@
 const MARKETPLACE_URL =
   'https://raw.githubusercontent.com/ClaudeRegistry/marketplace/main/.claude-plugin/marketplace.json';
 
+// Verification results (the "Verified by ClaudeRegistry" methodology output,
+// written by the marketplace repo's scripts/verify-plugins.mjs).
+const VERIFIED_URL =
+  'https://raw.githubusercontent.com/ClaudeRegistry/marketplace/main/.claude-plugin/verified.json';
+
 const TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 let cache = {
   plugins: [],
   fetchedAt: 0,
   lastGood: null, // last successfully-fetched plugin array
+};
+
+let vcache = {
+  data: null,
+  fetchedAt: 0,
+  lastGood: null, // last successfully-fetched verified.json
 };
 
 function transformEntry(entry) {
@@ -75,8 +86,53 @@ async function fetchCatalog() {
   }
 }
 
+async function fetchVerified() {
+  const now = Date.now();
+  if (vcache.data && now - vcache.fetchedAt < TTL_MS) {
+    return vcache.data;
+  }
+  try {
+    const res = await fetch(VERIFIED_URL, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    vcache = { data, fetchedAt: now, lastGood: data };
+    return data;
+  } catch (err) {
+    if (vcache.lastGood) {
+      vcache.fetchedAt = now;
+      return vcache.lastGood;
+    }
+    return null;
+  }
+}
+
+// Full verification record for one plugin: status, per-check results, badge.
+function verificationDetail(verifiedData, id) {
+  const info = verifiedData?.plugins?.[id];
+  if (!info) return null;
+  return {
+    status: info.status, // verified | listed | stale | failed
+    hosting: info.hosting, // registry | external
+    date: info.date,
+    firstSeen: info.firstSeen,
+    methodologyVersion: verifiedData.methodologyVersion,
+    methodologyUrl:
+      verifiedData.methodologyUrl || 'https://clauderegistry.com/verification',
+    badgeUrl: `https://clauderegistry.com/badge/${id}.svg`,
+    ...(info.repo ? { repo: info.repo, commit: info.commit } : {}),
+    checks: (info.checks || []).map((c) => ({
+      id: c.id,
+      title: c.title,
+      status: c.status, // pass | fail | n/a
+      detail: c.detail,
+    })),
+  };
+}
+
 export async function searchPlugins(query, category) {
-  const plugins = await fetchCatalog();
+  const [plugins, verified] = await Promise.all([fetchCatalog(), fetchVerified()]);
   const q = query ? String(query).toLowerCase().trim() : '';
   const cat = category ? String(category).toLowerCase().trim() : '';
 
@@ -96,14 +152,16 @@ export async function searchPlugins(query, category) {
     description: p.description,
     category: p.category,
     installCommand: p.installCommand,
+    verification: verified?.plugins?.[p.id]?.status ?? 'unknown',
   }));
 }
 
 export async function getPlugin(id) {
-  const plugins = await fetchCatalog();
+  const [plugins, verified] = await Promise.all([fetchCatalog(), fetchVerified()]);
   const target = id ? String(id).toLowerCase().trim() : '';
   const found = plugins.find((p) => p.id === target);
-  return found || null;
+  if (!found) return null;
+  return { ...found, verification: verificationDetail(verified, target) };
 }
 
 export async function listCategories() {

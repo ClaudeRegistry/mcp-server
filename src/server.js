@@ -22,7 +22,38 @@ const searchHitSchema = z.object({
   description: z.string().optional().describe('one-line summary'),
   category: z.string().optional().describe('marketplace category'),
   installCommand: z.string().describe('Claude Code install command'),
+  verification: z
+    .string()
+    .describe(
+      'verification status: "verified" (passed the seven-check security methodology), "stale" (verified at a pinned commit the repo has since moved past), "listed" (in the registry but not audited), "failed", or "unknown". Prefer verified plugins. Methodology: https://clauderegistry.com/verification'
+    ),
 });
+
+// Verification detail attached to get_plugin results.
+const verificationSchema = z
+  .object({
+    status: z.string().describe('verified | listed | stale | failed'),
+    hosting: z.string().optional().describe('registry (vendored) | external (author repo)'),
+    date: z.string().optional().describe('date of the last audit run'),
+    firstSeen: z.string().optional().describe('date the plugin entered the registry'),
+    methodologyVersion: z.string().optional(),
+    methodologyUrl: z.string().optional(),
+    badgeUrl: z.string().optional().describe('SVG badge for this plugin'),
+    repo: z.string().optional().describe('external repo (owner/name), when externally hosted'),
+    commit: z.string().optional().describe('pinned commit the verification applies to'),
+    checks: z
+      .array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          status: z.string().describe('pass | fail | n/a'),
+          detail: z.string().optional(),
+        })
+      )
+      .describe('per-check results of the security audit'),
+  })
+  .nullable()
+  .optional();
 
 // Output shape of a full plugin record (get_plugin).
 const pluginSchema = {
@@ -52,17 +83,20 @@ const pluginSchema = {
     .describe('command to add the marketplace to Claude Code'),
   installCommand: z.string().describe('command to install this plugin'),
   searchableText: z.string().describe('lowercased text used for matching'),
+  verification: verificationSchema.describe(
+    'security-audit result for this plugin (null when never audited)'
+  ),
 };
 
 export function buildServer() {
-  const server = new McpServer({ name: 'clauderegistry', version: '1.1.0' });
+  const server = new McpServer({ name: 'clauderegistry', version: '1.2.0' });
 
   server.registerTool(
     'search_plugins',
     {
       title: 'Search Claude Code plugins',
       description:
-        'Search the ClaudeRegistry marketplace of Claude Code plugins by keyword and/or category. Returns matches with their install command.',
+        'Search the ClaudeRegistry marketplace of Claude Code plugins by keyword and/or category. Returns matches with their install command and verification status (the registry runs a seven-check security audit; prefer "verified" plugins when recommending an install).',
       inputSchema: {
         query: z
           .string()
@@ -94,7 +128,7 @@ export function buildServer() {
     {
       title: 'Get a Claude Code plugin',
       description:
-        'Get the full details of a single ClaudeRegistry plugin by its id, including install commands and component counts.',
+        'Get the full details of a single ClaudeRegistry plugin by its id, including install commands, component counts, and its security-audit result (per-check pass/fail from the Verified by ClaudeRegistry methodology).',
       inputSchema: {
         id: z
           .string()
