@@ -6,7 +6,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { buildServer } from './server.js';
 
 const app = express();
-app.use(express.json());
+app.set('trust proxy', 'loopback'); // behind the local nginx proxy
+app.use(express.json({ limit: '600kb' })); // verify_plugin inline mode headroom
 
 // Permissive CORS for a public read-only server.
 app.use((req, res, next) => {
@@ -22,7 +23,7 @@ app.use((req, res, next) => {
 
 app.post('/mcp', async (req, res) => {
   try {
-    const server = buildServer();
+    const server = buildServer(req.ip);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless
     });
@@ -64,7 +65,7 @@ app.get('/', (_req, res) =>
   res
     .type('text/plain')
     .send(
-      'ClaudeRegistry MCP server. POST /mcp (Streamable HTTP). Tools: search_plugins, get_plugin, list_categories.'
+      'ClaudeRegistry MCP server. POST /mcp (Streamable HTTP). Tools: search_plugins, get_plugin, list_categories, verify_plugin.'
     )
 );
 
