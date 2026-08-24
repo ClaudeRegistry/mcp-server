@@ -1,6 +1,6 @@
 # Sigistry MCP server
 
-[![smithery badge](https://smithery.ai/badge/@sigistry/plugin-catalog)](https://smithery.ai/server/@sigistry/plugin-catalog)
+[![smithery badge](https://smithery.ai/badge/sigistry/plugin-catalog)](https://smithery.ai/servers/sigistry/plugin-catalog)
 
 A small, self-contained Node.js service that exposes the [Sigistry](https://sigistry.com) plugin catalog to AI agents through a public, read-only, authless **remote MCP server** using the Streamable HTTP transport.
 
@@ -22,7 +22,7 @@ claude mcp add --transport http sigistry https://sigistry.com/mcp
 
 ## Use with Smithery
 
-Listed on [Smithery](https://smithery.ai/server/@sigistry/plugin-catalog) as `@sigistry/plugin-catalog`. Smithery's gateway proxies to the same hosted endpoint, so you can install it into any Smithery-supported client:
+Listed on [Smithery](https://smithery.ai/servers/sigistry/plugin-catalog) as `@sigistry/plugin-catalog`. Smithery's gateway proxies to the same hosted endpoint, so you can install it into any Smithery-supported client:
 
 ```bash
 npx -y @smithery/cli install @sigistry/plugin-catalog --client claude
