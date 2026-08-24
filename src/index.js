@@ -64,11 +64,11 @@ app.get('/', (_req, res) =>
   res
     .type('text/plain')
     .send(
-      'ClaudeRegistry MCP server. POST /mcp (Streamable HTTP). Tools: search_plugins, get_plugin, list_categories, verify_plugin.'
+      'Sigistry MCP server. POST /mcp (Streamable HTTP). Tools: search_plugins, get_plugin, list_categories, verify_plugin.'
     )
 );
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () =>
-  console.log(`ClaudeRegistry MCP server on :${PORT}/mcp`)
+  console.log(`Sigistry MCP server on :${PORT}/mcp`)
 );

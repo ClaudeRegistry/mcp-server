@@ -1,9 +1,9 @@
 module.exports = {
   apps: [
     {
-      name: "clauderegistry-mcp",
+      name: "sigistry-mcp",
       script: "src/index.js",
-      cwd: "/var/www/clauderegistry/mcp-server",
+      cwd: "/var/www/sigistry/mcp-server",
       instances: 1,
       exec_mode: "fork",
       watch: false,
@@ -11,8 +11,8 @@ module.exports = {
         NODE_ENV: "production",
         PORT: "8787",
       },
-      error_file: "/var/log/pm2-clauderegistry-mcp-error.log",
-      out_file: "/var/log/pm2-clauderegistry-mcp-out.log",
+      error_file: "/var/log/pm2-sigistry-mcp-error.log",
+      out_file: "/var/log/pm2-sigistry-mcp-out.log",
       time: true,
       max_memory_restart: "256M",
       merge_logs: true,

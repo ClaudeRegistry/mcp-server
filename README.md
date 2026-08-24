@@ -1,8 +1,8 @@
-# ClaudeRegistry MCP server
+# Sigistry MCP server
 
-[![smithery badge](https://smithery.ai/badge/@clauderegistry/plugin-catalog)](https://smithery.ai/server/@clauderegistry/plugin-catalog)
+[![smithery badge](https://smithery.ai/badge/@sigistry/plugin-catalog)](https://smithery.ai/server/@sigistry/plugin-catalog)
 
-A small, self-contained Node.js service that exposes the [ClaudeRegistry](https://clauderegistry.com) plugin catalog to AI agents through a public, read-only, authless **remote MCP server** using the Streamable HTTP transport.
+A small, self-contained Node.js service that exposes the [Sigistry](https://sigistry.com) plugin catalog to AI agents through a public, read-only, authless **remote MCP server** using the Streamable HTTP transport.
 
 It reads the same `marketplace.json` the website uses and serves it as three MCP tools, so any MCP-capable agent can discover Claude Code plugins and get ready-to-run install commands.
 
@@ -17,15 +17,15 @@ It reads the same `marketplace.json` the website uses and serves it as three MCP
 Connect straight to the hosted endpoint (no gateway, no key):
 
 ```bash
-claude mcp add --transport http clauderegistry https://clauderegistry.com/mcp
+claude mcp add --transport http sigistry https://sigistry.com/mcp
 ```
 
 ## Use with Smithery
 
-Listed on [Smithery](https://smithery.ai/server/@clauderegistry/plugin-catalog) as `@clauderegistry/plugin-catalog`. Smithery's gateway proxies to the same hosted endpoint, so you can install it into any Smithery-supported client:
+Listed on [Smithery](https://smithery.ai/server/@sigistry/plugin-catalog) as `@sigistry/plugin-catalog`. Smithery's gateway proxies to the same hosted endpoint, so you can install it into any Smithery-supported client:
 
 ```bash
-npx -y @smithery/cli install @clauderegistry/plugin-catalog --client claude
+npx -y @smithery/cli install @sigistry/plugin-catalog --client claude
 ```
 
 ## Run locally
@@ -49,22 +49,26 @@ Other endpoints:
 
 ## Deployment
 
-Runs under **pm2** (`ecosystem.config.cjs`) at `/var/www/clauderegistry/mcp-server`, listening on `127.0.0.1:8787`, and exposed as the **path** `clauderegistry.com/mcp` via a `location` block in the existing site's Nginx (`.infra/nginx/clauderegistry.com.mcp-location.conf`), so there is no new subdomain, DNS record, or TLS cert. Because the static site is served directly by Nginx, a Node hiccup only ever affects `/mcp`.
+Runs under **pm2** (`ecosystem.config.cjs`) at `/var/www/sigistry/mcp-server`, listening on `127.0.0.1:8787`, and exposed as the **path** `sigistry.com/mcp` via a `location` block in the existing site's Nginx (`.infra/nginx/sigistry.com.mcp-location.conf`), so there is no new subdomain, DNS record, or TLS cert. Because the static site is served directly by Nginx, a Node hiccup only ever affects `/mcp`.
 
-Deploy with `.infra/deploy.sh` (or, from the ClaudeRegistry root, `./deploy.sh mcp-server`), which git-pulls on the server, runs `npm ci --omit=dev`, and `pm2 reload`s. Full runbook in [`DEPLOY.md`](./DEPLOY.md). A `Dockerfile` is included as an alternative to pm2.
+Deploy with `.infra/deploy.sh` (or, from the Sigistry root, `./deploy.sh mcp-server`), which git-pulls on the server, runs `npm ci --omit=dev`, and `pm2 reload`s. Full runbook in [`DEPLOY.md`](./DEPLOY.md). A `Dockerfile` is included as an alternative to pm2.
 
 The catalog is fetched from GitHub at runtime and cached in memory (~5 minute TTL). On a fetch error the server serves the last-good cache (or an empty list) and never crashes.
 
 ## Official MCP Registry
 
-Published to the [Official MCP Registry](https://github.com/modelcontextprotocol/registry) as **`com.clauderegistry/plugin-catalog`** (status `active`). The manifest is [`server.json`](./server.json); its `remotes` entry points at `https://clauderegistry.com/mcp`. To publish an update, bump the `version` in `server.json` and re-run the publisher (see [`DEPLOY.md`](./DEPLOY.md)); the registry caps `description` at 100 characters.
+Published to the [Official MCP Registry](https://github.com/modelcontextprotocol/registry) as **`com.sigistry/plugin-catalog`** (status `active`). The manifest is [`server.json`](./server.json); its `remotes` entry points at `https://sigistry.com/mcp`. To publish an update, bump the `version` in `server.json` and re-run the publisher (see [`DEPLOY.md`](./DEPLOY.md)); the registry caps `description` at 100 characters.
 
 ## Discovery
 
 - **Official MCP Registry** and **PulseMCP** (auto-ingests from the registry): live.
-- **Smithery** (`@clauderegistry/plugin-catalog`): listed.
+- **Smithery** (`@sigistry/plugin-catalog`): listed.
 - **Glama** indexes public MCP repositories on GitHub automatically.
 
 ## License
 
 MIT
+
+---
+
+*Sigistry is an independent project and is not affiliated with, endorsed by, or sponsored by Anthropic, PBC. Claude and Claude Code are trademarks of Anthropic, PBC, used here only to identify compatibility.*

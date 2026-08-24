@@ -7,7 +7,7 @@ import { searchPlugins, getPlugin, listCategories } from './catalog.js';
 
 // Shared read-only annotations: these tools never mutate anything, always
 // return the same result for the same input, and operate over the bounded
-// ClaudeRegistry catalog (a closed domain, not an open world).
+// Sigistry catalog (a closed domain, not an open world).
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -25,7 +25,7 @@ const searchHitSchema = z.object({
   verification: z
     .string()
     .describe(
-      'verification status: "verified" (passed the seven-check security methodology), "stale" (verified at a pinned commit the repo has since moved past), "listed" (in the registry but not audited), "failed", or "unknown". Prefer verified plugins. Methodology: https://clauderegistry.com/verification'
+      'verification status: "verified" (passed the seven-check security methodology), "stale" (verified at a pinned commit the repo has since moved past), "listed" (in the registry but not audited), "failed", or "unknown". Prefer verified plugins. Methodology: https://sigistry.com/verification'
     ),
 });
 
@@ -89,14 +89,14 @@ const pluginSchema = {
 };
 
 export function buildServer() {
-  const server = new McpServer({ name: 'clauderegistry', version: '1.4.0' });
+  const server = new McpServer({ name: 'sigistry', version: '1.4.0' });
 
   server.registerTool(
     'search_plugins',
     {
       title: 'Search Claude Code plugins',
       description:
-        'Search the ClaudeRegistry marketplace of Claude Code plugins by keyword and/or category. Returns matches with their install command and verification status (the registry runs a seven-check security audit; prefer "verified" plugins when recommending an install).',
+        'Search the Sigistry marketplace of Claude Code plugins by keyword and/or category. Returns matches with their install command and verification status (the registry runs a seven-check security audit; prefer "verified" plugins when recommending an install).',
       inputSchema: {
         query: z
           .string()
@@ -128,7 +128,7 @@ export function buildServer() {
     {
       title: 'Get a Claude Code plugin',
       description:
-        'Get the full details of a single ClaudeRegistry plugin by its id, including install commands, component counts, and its security-audit result (per-check pass/fail from the Verified by ClaudeRegistry methodology).',
+        'Get the full details of a single Sigistry plugin by its id, including install commands, component counts, and its security-audit result (per-check pass/fail from the Verified by Sigistry methodology).',
       inputSchema: {
         id: z
           .string()
@@ -161,7 +161,7 @@ export function buildServer() {
     {
       title: 'List plugin categories',
       description:
-        'List the distinct plugin categories in the ClaudeRegistry marketplace with a count of plugins in each, plus the total plugin count.',
+        'List the distinct plugin categories in the Sigistry marketplace with a count of plugins in each, plus the total plugin count.',
       inputSchema: {},
       outputSchema: {
         categories: z
@@ -191,14 +191,14 @@ export function buildServer() {
   // results come from the same script that gates the Verified badge, and the
   // server never fetches, stores, or executes anything on anyone's behalf.
   const VERIFIER_RAW_URL =
-    'https://raw.githubusercontent.com/ClaudeRegistry/marketplace/main/scripts/verify-plugins.mjs';
+    'https://raw.githubusercontent.com/Sigistry/marketplace/main/scripts/verify-plugins.mjs';
 
   server.registerTool(
     'verify_plugin',
     {
       title: 'Verify a Claude Code plugin (pre-publish, runs locally)',
       description:
-        'Get the recipe to run the ClaudeRegistry verification methodology (the seven static checks that gate the Verified badge: manifest integrity, hook safety, agent tool scopes, command hygiene, skill structure, no secrets, documentation) against a plugin BEFORE publishing it. The verification runs entirely on the local machine via a dependency-free open-source Node script; the plugin code never leaves the user\'s computer and this server performs no computation. Call this when the user wants their plugin or skill checked, then follow the returned steps: download the script, run it against the plugin directory, and fix any FAIL findings it reports.',
+        'Get the recipe to run the Sigistry verification methodology (the seven static checks that gate the Verified badge: manifest integrity, hook safety, agent tool scopes, command hygiene, skill structure, no secrets, documentation) against a plugin BEFORE publishing it. The verification runs entirely on the local machine via a dependency-free open-source Node script; the plugin code never leaves the user\'s computer and this server performs no computation. Call this when the user wants their plugin or skill checked, then follow the returned steps: download the script, run it against the plugin directory, and fix any FAIL findings it reports.',
       inputSchema: {
         pluginPath: z
           .string()
@@ -234,7 +234,7 @@ export function buildServer() {
       const result = {
         runsWhere: 'local',
         methodologyVersion: '1.0',
-        methodologyUrl: 'https://clauderegistry.com/verification',
+        methodologyUrl: 'https://sigistry.com/verification',
         checks: [
           { id: 'manifest-integrity', title: 'Manifest integrity', what: 'plugin.json valid and complete (name, version, license, description)' },
           { id: 'hook-safety', title: 'Hook safety', what: 'hooks are advisory-only and fail-safe: no network, no fs writes, no credential access, no dynamic evaluation; subprocess only for constant read-only git commands' },
@@ -253,12 +253,12 @@ export function buildServer() {
         commands: {
           macos_linux: `curl -fsSL ${VERIFIER_RAW_URL} -o /tmp/cr-verify.mjs && node /tmp/cr-verify.mjs "${target}"`,
           windows: `iwr ${VERIFIER_RAW_URL} -OutFile $env:TEMP\\cr-verify.mjs; node $env:TEMP\\cr-verify.mjs "${target}"`,
-          alternative_clone: `git clone https://github.com/ClaudeRegistry/marketplace && node marketplace/scripts/verify-plugins.mjs "${target}"`,
+          alternative_clone: `git clone https://github.com/Sigistry/marketplace && node marketplace/scripts/verify-plugins.mjs "${target}"`,
         },
         interpreting:
           'Exit code 0 means all applicable checks passed (verification-ready). Each FAIL line names the file and the exact problem; n/a means the plugin has no such component (e.g. no hooks). The same script, run by registry CI, gates the Verified badge on submission.',
         nextSteps:
-          'When verification-ready: submit via PR to github.com/ClaudeRegistry/marketplace (see CONTRIBUTING.md). Vendor under plugins/<name>/ for the Verified tier, or keep the repo external and add a commit pin for Verified-at-commit. Details: https://clauderegistry.com/verification',
+          'When verification-ready: submit via PR to github.com/Sigistry/marketplace (see CONTRIBUTING.md). Vendor under plugins/<name>/ for the Verified tier, or keep the repo external and add a commit pin for Verified-at-commit. Details: https://sigistry.com/verification',
       };
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],

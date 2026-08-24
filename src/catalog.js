@@ -1,13 +1,13 @@
-// Catalog: fetch + transform + cache of the ClaudeRegistry marketplace.json.
+// Catalog: fetch + transform + cache of the Sigistry marketplace.json.
 // Mirrors the website's marketplaceService.js transform.
 
 const MARKETPLACE_URL =
-  'https://raw.githubusercontent.com/ClaudeRegistry/marketplace/main/.claude-plugin/marketplace.json';
+  'https://raw.githubusercontent.com/Sigistry/marketplace/main/.claude-plugin/marketplace.json';
 
-// Verification results (the "Verified by ClaudeRegistry" methodology output,
+// Verification results (the "Verified by Sigistry" methodology output,
 // written by the marketplace repo's scripts/verify-plugins.mjs).
 const VERIFIED_URL =
-  'https://raw.githubusercontent.com/ClaudeRegistry/marketplace/main/.claude-plugin/verified.json';
+  'https://raw.githubusercontent.com/Sigistry/marketplace/main/.claude-plugin/verified.json';
 
 const TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -50,8 +50,8 @@ function transformEntry(entry) {
       skills: skills.length,
     },
     homepage: entry.homepage,
-    installMarketplace: '/plugin marketplace add clauderegistry/marketplace',
-    installCommand: `/plugin install ${id}@clauderegistry`,
+    installMarketplace: '/plugin marketplace add sigistry/marketplace',
+    installCommand: `/plugin install ${id}@sigistry`,
     searchableText: [name, entry.description, ...keywords, author && author.name]
       .filter(Boolean)
       .join(' ')
@@ -119,8 +119,8 @@ function verificationDetail(verifiedData, id) {
     firstSeen: info.firstSeen,
     methodologyVersion: verifiedData.methodologyVersion,
     methodologyUrl:
-      verifiedData.methodologyUrl || 'https://clauderegistry.com/verification',
-    badgeUrl: `https://clauderegistry.com/badge/${id}.svg`,
+      verifiedData.methodologyUrl || 'https://sigistry.com/verification',
+    badgeUrl: `https://sigistry.com/badge/${id}.svg`,
     ...(info.repo ? { repo: info.repo, commit: info.commit } : {}),
     checks: (info.checks || []).map((c) => ({
       id: c.id,
