@@ -3,7 +3,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { searchPlugins, getPlugin, listCategories } from './catalog.js';
+import { searchPlugins, getPlugin, listCategories, searchSkills, getSkill } from './catalog.js';
 
 // Shared read-only annotations: these tools never mutate anything, always
 // return the same result for the same input, and operate over the bounded
@@ -25,7 +25,7 @@ const searchHitSchema = z.object({
   verification: z
     .string()
     .describe(
-      'verification status: "verified" (passed the seven-check security methodology), "stale" (verified at a pinned commit the repo has since moved past), "listed" (in the registry but not audited), "failed", or "unknown". Prefer verified plugins. Methodology: https://sigistry.com/verification'
+      'verification status: "verified" (passed the eight-check security methodology), "stale" (verified at a pinned commit the repo has since moved past), "listed" (in the registry but not audited), "failed", or "unknown". Prefer verified plugins. Methodology: https://sigistry.com/verification'
     ),
 });
 
@@ -88,15 +88,25 @@ const pluginSchema = {
   ),
 };
 
+// Output shape of a single skill search hit.
+const skillHitSchema = z.object({
+  name: z.string().describe('stable skill name, e.g. "assessment-scoring"'),
+  description: z.string().describe('the skill trigger: when an agent should load it'),
+  plugin: z.string().describe('parent plugin id that ships this skill'),
+  verification: z.string().describe('verification status of the parent plugin; prefer "verified"'),
+  installCommand: z.string().describe('Claude Code command installing the parent plugin (skill loads automatically)'),
+  detailUrl: z.string().describe('human-readable page for this skill'),
+});
+
 export function buildServer() {
-  const server = new McpServer({ name: 'sigistry', version: '1.4.0' });
+  const server = new McpServer({ name: 'sigistry', version: '1.5.0' });
 
   server.registerTool(
     'search_plugins',
     {
       title: 'Search Claude Code plugins',
       description:
-        'Search the Sigistry marketplace of Claude Code plugins by keyword and/or category. Returns matches with their install command and verification status (the registry runs a seven-check security audit; prefer "verified" plugins when recommending an install).',
+        'Search the Sigistry marketplace of Claude Code plugins by keyword and/or category. Returns matches with their install command and verification status (the registry runs an eight-check security audit; prefer "verified" plugins when recommending an install).',
       inputSchema: {
         query: z
           .string()
@@ -185,6 +195,70 @@ export function buildServer() {
     }
   );
 
+  server.registerTool(
+    'search_skills',
+    {
+      title: 'Search verified Claude Code skills',
+      description:
+        'Search the Sigistry catalog of verified skills (SKILL.md instruction sets for AI agents) by keyword, optionally filtered to one parent plugin. Every skill passed the skill-safety check: no command shadowing, honestly-scoped triggers, no injection or concealment language, no unsafe scripts. Use get_skill to fetch the full portable source of a match.',
+      inputSchema: {
+        query: z.string().optional().describe('keywords, e.g. "changelog" or "security review"'),
+        plugin: z.string().optional().describe('restrict to skills shipped by this plugin id'),
+      },
+      outputSchema: {
+        results: z.array(skillHitSchema).describe('up to 20 matching skills, best matches first'),
+      },
+      annotations: { title: 'Search verified skills', ...READ_ONLY },
+    },
+    async ({ query, plugin }) => {
+      const results = await searchSkills(query, plugin);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
+        structuredContent: { results },
+      };
+    }
+  );
+
+  server.registerTool(
+    'get_skill',
+    {
+      title: 'Get a verified skill (with portable source)',
+      description:
+        'Get one Sigistry skill by name, including the full raw SKILL.md source. The source is portable: it can be applied directly in any SKILL.md-aware agent (Claude Code, Claude Desktop, and others) without installing anything, or installed natively in Claude Code via the parent plugin, which keeps it verified and updated. The returned skill passed the Sigistry skill-safety check at the parent plugin\'s verification date.',
+      inputSchema: {
+        name: z.string().describe('the skill name, e.g. "assessment-scoring" (find names via search_skills)'),
+      },
+      outputSchema: {
+        ...skillHitSchema.shape,
+        pluginCategory: z.string().nullable().describe('category of the parent plugin'),
+        verifiedDate: z.string().nullable().describe('date of the verification run covering this skill'),
+        sourceUrl: z.string().describe('GitHub location of the skill directory'),
+        source: z
+          .string()
+          .nullable()
+          .describe('the complete raw SKILL.md (frontmatter + body); null only if the fetch failed'),
+      },
+      annotations: { title: 'Get a verified skill', ...READ_ONLY },
+    },
+    async ({ name }) => {
+      const skill = await getSkill(name);
+      if (!skill) {
+        const msg = {
+          error: 'not_found',
+          message: `No skill named "${name}". Use search_skills to discover available skill names.`,
+        };
+        return {
+          content: [{ type: 'text', text: JSON.stringify(msg, null, 2) }],
+          isError: true,
+        };
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(skill, null, 2) }],
+        structuredContent: skill,
+      };
+    }
+  );
+
   // verify_plugin deliberately does NO server-side work. It returns the
   // recipe for the calling agent to run the open-source verifier ON THE
   // USER'S MACHINE: the plugin's code never leaves their computer, the check
@@ -198,7 +272,7 @@ export function buildServer() {
     {
       title: 'Verify a Claude Code plugin (pre-publish, runs locally)',
       description:
-        'Get the recipe to run the Sigistry verification methodology (the seven static checks that gate the Verified badge: manifest integrity, hook safety, agent tool scopes, command hygiene, skill structure, no secrets, documentation) against a plugin BEFORE publishing it. The verification runs entirely on the local machine via a dependency-free open-source Node script; the plugin code never leaves the user\'s computer and this server performs no computation. Call this when the user wants their plugin or skill checked, then follow the returned steps: download the script, run it against the plugin directory, and fix any FAIL findings it reports.',
+        'Get the recipe to run the Sigistry verification methodology (the eight static checks that gate the Verified badge: manifest integrity, hook safety, agent tool scopes, command hygiene, skill structure, skill safety, no secrets, documentation) against a plugin BEFORE publishing it. The verification runs entirely on the local machine via a dependency-free open-source Node script; the plugin code never leaves the user\'s computer and this server performs no computation. Call this when the user wants their plugin or skill checked, then follow the returned steps: download the script, run it against the plugin directory, and fix any FAIL findings it reports.',
       inputSchema: {
         pluginPath: z
           .string()
@@ -211,7 +285,7 @@ export function buildServer() {
         methodologyUrl: z.string(),
         checks: z
           .array(z.object({ id: z.string(), title: z.string(), what: z.string() }))
-          .describe('the seven checks the script will run'),
+          .describe('the eight checks the script will run'),
         steps: z.array(z.string()).describe('what the agent should do, in order'),
         commands: z.object({
           macos_linux: z.string().describe('download + run one-liner for bash/zsh'),
@@ -233,7 +307,7 @@ export function buildServer() {
       const target = pluginPath && pluginPath.trim() ? pluginPath.trim() : 'path/to/your-plugin';
       const result = {
         runsWhere: 'local',
-        methodologyVersion: '1.0',
+        methodologyVersion: '1.1',
         methodologyUrl: 'https://sigistry.com/verification',
         checks: [
           { id: 'manifest-integrity', title: 'Manifest integrity', what: 'plugin.json valid and complete (name, version, license, description)' },
@@ -241,6 +315,7 @@ export function buildServer() {
           { id: 'agent-tool-scope', title: 'Agent tool scopes', what: 'every subagent declares an explicit least-privilege tools list; analysis agents carry no Write/Edit' },
           { id: 'command-hygiene', title: 'Command hygiene', what: 'every command has frontmatter with a description' },
           { id: 'skill-structure', title: 'Skill structure', what: 'skills/<name>/SKILL.md with name+description; referenced reference files exist' },
+          { id: 'skill-safety', title: 'Skill safety', what: 'no command shadowing, honestly-scoped triggers, no injection or concealment language, no unsafe scripts (pipe-to-shell, hidden payloads, credential access)' },
           { id: 'no-secrets', title: 'No secrets', what: 'no credentials, keys, or tokens anywhere in the plugin' },
           { id: 'docs', title: 'Documentation', what: 'a substantive README with the registry install commands' },
         ],

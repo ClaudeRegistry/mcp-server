@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "com.sigistry/plugin-catalog",
-  "title": "Sigistry Plugin Catalog",
-  "description": "Search and install Claude Code plugins from the Sigistry marketplace (read-only).",
-  "version": "1.4.0",
+  "title": "Sigistry Plugin & Skill Catalog",
+  "description": "Search verified Claude Code plugins and skills; fetch portable SKILL.md sources. Read-only.",
+  "version": "1.5.0",
   "remotes": [
     {
       "type": "streamable-http",

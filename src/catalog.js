@@ -177,3 +177,99 @@ export async function listCategories() {
 
   return { categories, total: plugins.length };
 }
+
+// ---------------------------------------------------------------------------
+// Skills index (written by the marketplace repo's generate-skills-index.mjs).
+// Same fetch+TTL+last-good pattern as the catalog; get_skill additionally
+// fetches the raw SKILL.md so agents can use the skill directly.
+// ---------------------------------------------------------------------------
+
+const SKILLS_URL =
+  'https://raw.githubusercontent.com/Sigistry/marketplace/main/.claude-plugin/skills.json';
+const RAW_BASE = 'https://raw.githubusercontent.com/Sigistry/marketplace/main';
+
+let scache = { data: null, fetchedAt: 0, lastGood: null };
+let rawCache = new Map(); // skill name -> { text, fetchedAt }
+
+async function fetchSkillsIndex() {
+  const now = Date.now();
+  if (scache.data && now - scache.fetchedAt < TTL_MS) return scache.data;
+  try {
+    const res = await fetch(SKILLS_URL, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    scache = { data, fetchedAt: now, lastGood: data };
+    return data;
+  } catch {
+    if (scache.lastGood) {
+      scache.fetchedAt = now;
+      return scache.lastGood;
+    }
+    return null;
+  }
+}
+
+function skillHit(s) {
+  return {
+    name: s.name,
+    description: s.description,
+    plugin: s.plugin,
+    verification: s.status ?? 'unknown',
+    installCommand: `/plugin install ${s.plugin}@sigistry`,
+    detailUrl: `https://sigistry.com/skills/${s.name}`,
+  };
+}
+
+export async function searchSkills(query, plugin) {
+  const idx = await fetchSkillsIndex();
+  const skills = idx?.skills ?? [];
+  const q = query ? String(query).toLowerCase().trim() : '';
+  const p = plugin ? String(plugin).toLowerCase().trim() : '';
+
+  let results = skills;
+  if (q) {
+    results = results.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.description || '').toLowerCase().includes(q)
+    );
+  }
+  if (p) results = results.filter((s) => s.plugin.toLowerCase() === p);
+
+  return results.slice(0, 20).map(skillHit);
+}
+
+export async function getSkill(name) {
+  const idx = await fetchSkillsIndex();
+  const target = name ? String(name).toLowerCase().trim() : '';
+  const skill = (idx?.skills ?? []).find((s) => s.name === target);
+  if (!skill) return null;
+
+  // Raw SKILL.md, cached per skill: this is the portable artifact an agent
+  // can apply directly (Claude Code, Claude Desktop, or any SKILL.md-aware
+  // harness) without installing the plugin.
+  let source = null;
+  const now = Date.now();
+  const cached = rawCache.get(target);
+  if (cached && now - cached.fetchedAt < TTL_MS) {
+    source = cached.text;
+  } else {
+    try {
+      const res = await fetch(`${RAW_BASE}/${skill.path}/SKILL.md`);
+      if (res.ok) {
+        source = await res.text();
+        rawCache.set(target, { text: source, fetchedAt: now });
+      }
+    } catch {
+      /* source stays null; metadata is still useful */
+    }
+  }
+
+  return {
+    ...skillHit(skill),
+    pluginCategory: skill.pluginCategory ?? null,
+    verifiedDate: skill.verifiedDate ?? null,
+    sourceUrl: `https://github.com/Sigistry/marketplace/tree/main/${skill.path}`,
+    source,
+  };
+}
