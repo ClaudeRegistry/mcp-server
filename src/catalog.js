@@ -247,7 +247,13 @@ export async function getSkill(name) {
 
   // Raw SKILL.md, cached per skill: this is the portable artifact an agent
   // can apply directly (Claude Code, Claude Desktop, or any SKILL.md-aware
-  // harness) without installing the plugin.
+  // harness) without installing the plugin. Registry skills resolve to this
+  // repo; externally pinned skills resolve to the AUTHOR'S repo at the
+  // pinned (immutable) commit - no source is copied into Sigistry.
+  const external = skill.hosting === 'external';
+  const rawBase = external
+    ? `https://raw.githubusercontent.com/${skill.repo}/${skill.commit}/${skill.path}`
+    : `${RAW_BASE}/${skill.path}`;
   let source = null;
   const now = Date.now();
   const cached = rawCache.get(target);
@@ -255,7 +261,7 @@ export async function getSkill(name) {
     source = cached.text;
   } else {
     try {
-      const res = await fetch(`${RAW_BASE}/${skill.path}/SKILL.md`);
+      const res = await fetch(`${rawBase}/SKILL.md`);
       if (res.ok) {
         source = await res.text();
         rawCache.set(target, { text: source, fetchedAt: now });
@@ -269,7 +275,11 @@ export async function getSkill(name) {
     ...skillHit(skill),
     pluginCategory: skill.pluginCategory ?? null,
     verifiedDate: skill.verifiedDate ?? null,
-    sourceUrl: `https://github.com/Sigistry/marketplace/tree/main/${skill.path}`,
+    hosting: skill.hosting ?? 'registry',
+    ...(external ? { repo: skill.repo, commit: skill.commit } : {}),
+    sourceUrl: external
+      ? `https://github.com/${skill.repo}/tree/${skill.commit}/${skill.path}`
+      : `https://github.com/Sigistry/marketplace/tree/main/${skill.path}`,
     source,
   };
 }

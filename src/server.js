@@ -1,4 +1,6 @@
-// buildServer(): create an McpServer with the three catalog tools registered.
+// buildServer(): create an McpServer with the catalog tools registered:
+// search_plugins, get_plugin, list_categories, search_skills, get_skill,
+// and the local-recipe verify_plugin.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -232,6 +234,9 @@ export function buildServer() {
         ...skillHitSchema.shape,
         pluginCategory: z.string().nullable().describe('category of the parent plugin'),
         verifiedDate: z.string().nullable().describe('date of the verification run covering this skill'),
+        hosting: z.string().describe('"registry" (vendored here) or "external" (author repo, verified at a pinned commit)'),
+        repo: z.string().optional().describe('author repo (owner/name), when externally hosted'),
+        commit: z.string().optional().describe('pinned commit the source is served from, when externally hosted'),
         sourceUrl: z.string().describe('GitHub location of the skill directory'),
         source: z
           .string()
@@ -307,7 +312,7 @@ export function buildServer() {
       const target = pluginPath && pluginPath.trim() ? pluginPath.trim() : 'path/to/your-plugin';
       const result = {
         runsWhere: 'local',
-        methodologyVersion: '1.1',
+        methodologyVersion: '1.2',
         methodologyUrl: 'https://sigistry.com/verification',
         checks: [
           { id: 'manifest-integrity', title: 'Manifest integrity', what: 'plugin.json valid and complete (name, version, license, description)' },

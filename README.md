@@ -1,10 +1,10 @@
 # Sigistry MCP server
 
-[![smithery badge](https://smithery.ai/badge/sigistry/plugin-catalog)](https://smithery.ai/servers/sigistry/plugin-catalog)
+[Listed on Smithery](https://smithery.ai/servers/sigistry/plugin-catalog) · [Official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=sigistry)
 
-A small, self-contained Node.js service that exposes the [Sigistry](https://sigistry.com) plugin catalog to AI agents through a public, read-only, authless **remote MCP server** using the Streamable HTTP transport.
+A small, self-contained Node.js service that exposes the [Sigistry](https://sigistry.com) catalog of verified plugins and skills to AI agents through a public, read-only, authless **remote MCP server** using the Streamable HTTP transport.
 
-It reads the same `marketplace.json` the website uses and serves it as three MCP tools, so any MCP-capable agent can discover Claude Code plugins and get ready-to-run install commands.
+It reads the same `marketplace.json` and `skills.json` the website uses and serves them as MCP tools, so any MCP-capable agent can discover verified plugins and skills, fetch portable SKILL.md sources, and get ready-to-run install commands.
 
 ## Tools
 
